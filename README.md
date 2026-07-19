@@ -1,4 +1,4 @@
-# ContextBridge 🌉
+# Continuum 🌉
 
 **Carry your AI conversation context across Claude, ChatGPT, and Gemini — free, local, no account.**
 
