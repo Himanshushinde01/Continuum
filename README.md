@@ -31,10 +31,11 @@
 > **No store required.** Takes 30 seconds.
 
 1. **[Download the latest release ZIP](https://github.com/Himanshushinde01/Continuum/releases/latest)**
-   - Download `contextbridge-extension.zip`
+   - ⚠️ **CRITICAL:** Under the "Assets" section at the bottom of the release, download **`contextbridge-extension.zip`**.
+   - ❌ **DO NOT** click "Source code (zip)" — it will cause a `Could not load manifest` error because it requires building from scratch.
 
 2. **Extract the ZIP**
-   - Right-click → Extract All → remember the folder location
+   - Right-click `contextbridge-extension.zip` → Extract All → remember the folder location.
 
 3. **Open Chrome Extensions**
    - Navigate to `chrome://extensions/`
@@ -44,7 +45,7 @@
 
 5. **Load the Extension**
    - Click **"Load unpacked"**
-   - Select the **extracted folder** (not the ZIP)
+   - Select the **extracted folder** (it should contain `manifest.json` and `popup.html` right inside it).
 
 6. **Pin it** 🌉
    - Click the puzzle piece icon in Chrome toolbar → Pin ContextBridge
