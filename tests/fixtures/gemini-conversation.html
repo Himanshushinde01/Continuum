@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Gemini Test Fixture</title></head>
+<body>
+<chat-window>
+  <user-query>
+    <p>Explain how transformers work in machine learning at a high level.</p>
+  </user-query>
+  <model-response>
+    <p>Transformers are a neural network architecture introduced in the paper "Attention is All You Need" (2017). The key innovation is the self-attention mechanism, which allows the model to weigh the importance of different words in a sequence relative to each other.</p>
+    <p>At a high level: input tokens are converted to embeddings, positional encoding is added, then multiple layers of multi-head self-attention and feed-forward networks process the sequence. This allows the model to capture long-range dependencies much better than RNNs.</p>
+  </model-response>
+  <user-query>
+    <p>What is multi-head attention specifically?</p>
+  </user-query>
+  <model-response>
+    <p>Multi-head attention runs multiple attention operations ("heads") in parallel, each learning different aspects of relationships between tokens. The outputs are then concatenated and projected.</p>
+    <p>Each head computes: Attention(Q, K, V) = softmax(QK^T / sqrt(d_k)) * V where Q, K, V are learned linear projections of the input.</p>
+    <pre><code class="language-python">import torch
+import torch.nn as nn
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super().__init__()
+        self.num_heads = num_heads
+        self.d_k = d_model // num_heads
+        self.W_q = nn.Linear(d_model, d_model)
+        self.W_k = nn.Linear(d_model, d_model)
+        self.W_v = nn.Linear(d_model, d_model)</code></pre>
+  </model-response>
+</chat-window>
+</body>
+</html>

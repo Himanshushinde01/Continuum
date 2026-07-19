@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ContextBridge — Privacy Policy</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 24px;
+      color: #1e293b;
+      line-height: 1.7;
+    }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; color: #0f172a; }
+    h2 { font-size: 18px; font-weight: 600; margin-top: 32px; color: #0f172a; }
+    p { margin-top: 8px; color: #334155; }
+    .badge {
+      display: inline-block;
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      color: #166534;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+    .updated { font-size: 13px; color: #64748b; margin-top: 4px; }
+    ul { padding-left: 20px; color: #334155; margin-top: 8px; }
+    li { margin-top: 4px; }
+    a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>ContextBridge Privacy Policy</h1>
+  <div class="updated">Last updated: July 19, 2026</div>
+  <div class="badge">✓ 100% Local — No data ever leaves your browser</div>
+
+  <h2>What data does ContextBridge access?</h2>
+  <p>ContextBridge reads the text content of AI conversations on Claude (claude.ai), ChatGPT (chatgpt.com), and Gemini (gemini.google.com) — but <strong>only when you explicitly click "Capture This Chat."</strong></p>
+  <p>The extension never reads your data passively, automatically, or in the background.</p>
+
+  <h2>Where is your data stored?</h2>
+  <p>All captured conversation data is stored <strong>exclusively in your browser's local storage</strong> (<code>chrome.storage.local</code>). This means:</p>
+  <ul>
+    <li>Data never leaves your device.</li>
+    <li>No servers receive or store your conversations.</li>
+    <li>No accounts or sign-in required.</li>
+    <li>Uninstalling the extension permanently deletes all stored data.</li>
+  </ul>
+
+  <h2>Does ContextBridge send any data to external servers?</h2>
+  <p><strong>No.</strong> ContextBridge performs zero network requests. There is no backend, no analytics, no telemetry, and no cloud sync in the current version (v1).</p>
+
+  <h2>What permissions does ContextBridge use, and why?</h2>
+  <ul>
+    <li><strong>storage</strong> — to save and retrieve your captured conversations locally.</li>
+    <li><strong>activeTab</strong> — to read the current tab's URL (to detect which platform you're on) and send a capture message to the content script.</li>
+    <li><strong>scripting</strong> — to inject context text into the AI platform's input box when you click "Inject".</li>
+    <li><strong>Host permissions</strong> (claude.ai, chatgpt.com, gemini.google.com) — to run the content script that extracts conversation text and fills the input box on those specific sites only.</li>
+  </ul>
+
+  <h2>Does ContextBridge read my conversations automatically?</h2>
+  <p>No. The content script is loaded on supported AI sites but does not extract any data until you explicitly click "Capture This Chat" in the popup. The extension never monitors, reads, or processes your conversations passively.</p>
+
+  <h2>Is ContextBridge open source?</h2>
+  <p>Yes. The full source code is available at <a href="https://github.com/Himanshushinde01/Continuum" target="_blank">github.com/Himanshushinde01/Continuum</a>. You can audit exactly what the extension does.</p>
+
+  <h2>Contact</h2>
+  <p>If you have any questions or concerns about this privacy policy, open an issue on the <a href="https://github.com/Himanshushinde01/Continuum/issues">GitHub repository</a>.</p>
+
+  <hr style="margin-top: 40px; border: none; border-top: 1px solid #e2e8f0;" />
+  <p style="font-size: 12px; color: #94a3b8; margin-top: 16px;">
+    ContextBridge is a free, open-source Chrome extension with no commercial intent. It is maintained by Himanshu Shinde.
+  </p>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Claude Test Fixture</title></head>
+<body>
+<div data-testid="conversation">
+  <div data-testid="conversation-turn-1" class="human">
+    <div data-message-author-role="user">
+      <p>I am trying to build a sorting algorithm in Python that sorts a list of integers in O(n log n) time. Can you help me implement merge sort?</p>
+    </div>
+  </div>
+  <div data-testid="conversation-turn-2" class="assistant">
+    <div data-message-author-role="assistant">
+      <p>Sure! Merge sort is a classic divide-and-conquer algorithm that runs in O(n log n) time. Here is a clean Python implementation:</p>
+      <pre><code class="language-python">def merge_sort(arr):
+    if len(arr) <= 1:
+        return arr
+    mid = len(arr) // 2
+    left = merge_sort(arr[:mid])
+    right = merge_sort(arr[mid:])
+    return merge(left, right)
+
+def merge(left, right):
+    result = []
+    i = j = 0
+    while i < len(left) and j < len(right):
+        if left[i] <= right[j]:
+            result.append(left[i])
+            i += 1
+        else:
+            result.append(right[j])
+            j += 1
+    result.extend(left[i:])
+    result.extend(right[j:])
+    return result</code></pre>
+      <p>The time complexity is O(n log n) in all cases, and the space complexity is O(n) because we create new arrays during merging.</p>
+    </div>
+  </div>
+  <div data-testid="conversation-turn-3" class="human">
+    <div data-message-author-role="user">
+      <p>Great! Can you also add a test for this function?</p>
+    </div>
+  </div>
+  <div data-testid="conversation-turn-4" class="assistant">
+    <div data-message-author-role="assistant">
+      <p>Of course! Here are some tests using Python's unittest module:</p>
+      <pre><code class="language-python">import unittest
+
+class TestMergeSort(unittest.TestCase):
+    def test_empty(self):
+        self.assertEqual(merge_sort([]), [])
+    def test_single(self):
+        self.assertEqual(merge_sort([1]), [1])
+    def test_sorted(self):
+        self.assertEqual(merge_sort([1, 2, 3]), [1, 2, 3])
+    def test_reverse(self):
+        self.assertEqual(merge_sort([3, 2, 1]), [1, 2, 3])</code></pre>
+    </div>
+  </div>
+</div>
+</body>
+</html>

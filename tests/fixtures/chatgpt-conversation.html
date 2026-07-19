@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>ChatGPT Test Fixture</title></head>
+<body>
+<main>
+  <article data-testid="conversation-turn-1">
+    <div data-message-author-role="user">
+      <p>What is the difference between a stack and a queue in data structures?</p>
+    </div>
+  </article>
+  <article data-testid="conversation-turn-2">
+    <div data-message-author-role="assistant">
+      <div class="markdown">
+        <p>A stack and a queue are both linear data structures but they differ in how elements are added and removed.</p>
+        <p>Stack follows LIFO (Last In First Out) — the last element pushed is the first to be popped. Think of a stack of plates.</p>
+        <p>Queue follows FIFO (First In First Out) — the first element enqueued is the first to be dequeued. Think of a line at a ticket counter.</p>
+        <pre><code class="language-python">stack = []
+stack.append(1)  # push
+stack.pop()      # pop -> 1
+
+from collections import deque
+queue = deque()
+queue.append(1)    # enqueue
+queue.popleft()    # dequeue -> 1</code></pre>
+      </div>
+    </div>
+  </article>
+  <article data-testid="conversation-turn-3">
+    <div data-message-author-role="user">
+      <p>Can you give me a real-world use case for each?</p>
+    </div>
+  </article>
+  <article data-testid="conversation-turn-4">
+    <div data-message-author-role="assistant">
+      <div class="markdown">
+        <p>Stack use cases: browser back button history, undo/redo functionality in text editors, function call stack in any programming language.</p>
+        <p>Queue use cases: print job scheduling, CPU task scheduling, BFS graph traversal, message queues in distributed systems.</p>
+      </div>
+    </div>
+  </article>
+</main>
+</body>
+</html>

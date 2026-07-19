@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output (the dist/ folder is rebuilt by `npm run build`)
+dist/
+
+# Source maps (too large for git, generated at build time)
+*.js.map
+
+# The release zip is uploaded to GitHub Releases, not committed
+contextbridge-extension.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+*.swp
+*.swo
+
+# Temp
+*.tmp
+*.log
