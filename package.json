@@ -4,7 +4,7 @@
   "description": "ContextBridge — capture, compress, and carry AI conversation context across Claude, ChatGPT, and Gemini",
   "main": "index.js",
   "scripts": {
-    "build": "vite build",
+    "build": "node scripts/build.mjs",
     "dev": "vite build --watch",
     "test": "vitest run",
     "test:watch": "vitest",
