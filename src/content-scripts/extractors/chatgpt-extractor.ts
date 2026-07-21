@@ -1,88 +1,109 @@
 import type { Turn } from '../../core/models/conversation';
 import { ExtractionError } from '../../shared/errors/error-types';
+import { logger } from '../../shared/logger/logger';
 import { BaseExtractor } from './base-extractor';
 
 /**
- * ChatGPT DOM extractor.
- * Responsible ONLY for ChatGPT-specific DOM queries.
+ * ChatGPT DOM extractor (updated July 2026).
  *
- * ChatGPT DOM structure (as of July 2026):
- *   - Each conversation turn has data-message-author-role="user" or "assistant"
- *   - Wrapped inside article elements within the conversation thread
+ * Confirmed selectors (live console inspection):
+ *   [data-message-author-role="user"]      — user turn div
+ *   [data-message-author-role="assistant"] — assistant turn div
+ *   .markdown.prose  (or .markdown alone)  — assistant prose body, nested inside the role div
+ *
+ * ⚠ DO NOT take roleEl.textContent directly for assistant turns — the wrapper
+ *   may include hidden button labels, copy icons, regenerate UI chrome, etc.
+ *   Always resolve .markdown within the role node first, then fall back to
+ *   the role node's own textContent ONLY when .markdown is absent (user turns
+ *   typically have no markdown wrapper).
+ *
+ * DOM order preservation: a single querySelectorAll('[data-message-author-role]')
+ * returns nodes in document order, so no manual sorting is needed.
  */
+
+const SELECTORS = {
+  turn: '[data-message-author-role]',
+  assistantBody: '.markdown',
+} as const;
+
+const MODULE = 'chatgpt-extractor';
+
 export class ChatGPTExtractor extends BaseExtractor {
   readonly platform = 'chatgpt' as const;
 
   protected findTurnElements(): Element[] {
-    // Primary: article elements with data-testid="conversation-turn-*"
-    let turns = Array.from(
-      document.querySelectorAll('article[data-testid^="conversation-turn-"]')
-    );
+    // Single flat query — returns user AND assistant nodes in document order.
+    const nodes = document.querySelectorAll(SELECTORS.turn);
 
-    if (turns.length === 0) {
-      // Fallback: divs with role attribute indicating turns
-      turns = Array.from(
-        document.querySelectorAll('[data-message-author-role]')
-      ).map((el) => el.closest('article') ?? el);
-
-      // Deduplicate
-      turns = [...new Set(turns)];
-    }
-
-    if (turns.length === 0) {
+    if (nodes.length === 0) {
       throw new ExtractionError({
         code: 'EXTRACTION_CONTAINER_NOT_FOUND',
-        module: 'chatgpt-extractor',
+        module: MODULE,
         fn: 'findTurnElements',
-        message:
-          'Could not find conversation turns — ChatGPT DOM structure may have changed',
+        message: 'Could not find any conversation turns — ChatGPT DOM structure may have changed',
         context: {
           url: window.location.href,
-          triedSelectors: [
-            'article[data-testid^="conversation-turn-"]',
-            '[data-message-author-role]',
-          ],
+          triedSelectors: [SELECTORS.turn],
         },
       });
     }
 
-    return turns;
+    return Array.from(nodes);
   }
 
   protected parseTurn(el: Element): Turn | null {
-    // Find the role indicator
-    const roleEl =
-      el.querySelector('[data-message-author-role]') ??
-      el.closest('[data-message-author-role]');
-
-    const rawRole = roleEl?.getAttribute('data-message-author-role');
+    const rawRole = el.getAttribute('data-message-author-role');
     if (!rawRole) return null;
 
-    const role: 'user' | 'assistant' =
-      rawRole === 'user' ? 'user' : 'assistant';
+    const role: 'user' | 'assistant' = rawRole === 'user' ? 'user' : 'assistant';
 
-    const content = this.extractTextContent(el, role);
+    if (role === 'assistant') {
+      // Resolve .markdown inside the role node — never use the wrapper's textContent
+      // directly, as it may contain UI chrome (copy buttons, regenerate labels, etc.).
+      const bodyEl = el.querySelector(SELECTORS.assistantBody);
+      if (!bodyEl) {
+        logger.warn(MODULE, 'parseTurn',
+          'Assistant turn found but .markdown body missing — skipping turn', {
+            wrapperOuterHtml: el.outerHTML.slice(0, 200),
+          });
+        return null;
+      }
+
+      const content = this.extractTextContent(bodyEl);
+      if (!content) return null;
+
+      return {
+        role: 'assistant',
+        content,
+        codeBlocks: this.extractCodeBlocks(bodyEl),
+      };
+    }
+
+    // User turn — no markdown wrapper; take textContent directly.
+    const content = this.extractTextContent(el);
     if (!content) return null;
 
-    const codeBlocks = this.extractCodeBlocks(el);
-
-    return { role, content, codeBlocks };
+    return {
+      role: 'user',
+      content,
+      codeBlocks: this.extractCodeBlocks(el),
+    };
   }
 
-  private extractTextContent(el: Element, role: 'user' | 'assistant'): string {
+  /**
+   * Strips <pre> blocks (captured separately as codeBlocks) and returns clean prose text.
+   */
+  private extractTextContent(el: Element): string {
     const clone = el.cloneNode(true) as Element;
     clone.querySelectorAll('pre').forEach((pre) => pre.remove());
 
-    // ChatGPT wraps prose in markdown-body or similar classes
-    if (role === 'assistant') {
-      const prose =
-        clone.querySelector('.markdown') ??
-        clone.querySelector('[class*="markdown"]') ??
-        clone.querySelector('[class*="prose"]');
-
-      if (prose) {
-        return prose.textContent?.trim() ?? '';
-      }
+    // Prefer explicit paragraph elements for clean extraction
+    const paragraphs = clone.querySelectorAll('p');
+    if (paragraphs.length > 0) {
+      return Array.from(paragraphs)
+        .map((p) => p.textContent?.trim())
+        .filter(Boolean)
+        .join('\n\n');
     }
 
     return clone.textContent?.trim() ?? '';

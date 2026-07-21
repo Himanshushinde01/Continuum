@@ -1,82 +1,111 @@
 import type { Turn } from '../../core/models/conversation';
 import { ExtractionError } from '../../shared/errors/error-types';
+import { logger } from '../../shared/logger/logger';
 import { BaseExtractor } from './base-extractor';
 
 /**
- * Gemini DOM extractor.
- * Responsible ONLY for Gemini-specific DOM queries.
+ * Gemini DOM extractor (updated July 2026).
  *
- * Gemini DOM structure (as of July 2026):
- *   - Conversation uses custom web components like <user-query> and <model-response>
- *   - Falls back to role-based containers
+ * Confirmed selectors (live console inspection):
+ *   user-query           — custom element wrapping each user turn
+ *   user-query-content   — nested element holding the actual user text
+ *   model-response       — custom element wrapping each assistant turn
+ *   message-content      — nested element holding the actual assistant text
+ *                          (do NOT use response-container's textContent — it includes
+ *                          surrounding action chrome / regenerate buttons)
+ *
+ * DOM order preservation: querySelectorAll('user-query, model-response') returns
+ * all nodes in document order, so user/assistant turns come out correctly
+ * interleaved without any manual sorting.
  */
+
+const SELECTORS = {
+  userTurn: 'user-query',
+  assistantTurn: 'model-response',
+  userBody: 'user-query-content',
+  assistantBody: 'message-content',
+} as const;
+
+const MODULE = 'gemini-extractor';
+
 export class GeminiExtractor extends BaseExtractor {
   readonly platform = 'gemini' as const;
 
   protected findTurnElements(): Element[] {
-    // Gemini uses custom web components for each turn
-    const userTurns = Array.from(document.querySelectorAll('user-query, .user-query'));
-    const modelTurns = Array.from(document.querySelectorAll('model-response, .model-response'));
+    // Combined selector — querySelectorAll preserves DOM order across both custom elements.
+    const nodes = document.querySelectorAll(
+      `${SELECTORS.userTurn}, ${SELECTORS.assistantTurn}`
+    );
 
-    const combined = [...userTurns, ...modelTurns];
-
-    if (combined.length > 0) {
-      // Sort by DOM order
-      return combined.sort((a, b) =>
-        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
-      );
-    }
-
-    // Fallback: look for a conversation container
-    const container =
-      document.querySelector('chat-window') ??
-      document.querySelector('[class*="conversation-container"]') ??
-      document.querySelector('main');
-
-    if (!container) {
+    if (nodes.length === 0) {
       throw new ExtractionError({
         code: 'EXTRACTION_CONTAINER_NOT_FOUND',
-        module: 'gemini-extractor',
+        module: MODULE,
         fn: 'findTurnElements',
-        message: 'Could not find conversation container — Gemini DOM structure may have changed',
+        message: 'Could not find any conversation turns — Gemini DOM structure may have changed',
         context: {
           url: window.location.href,
-          triedSelectors: ['user-query', 'model-response', 'chat-window', 'main'],
+          triedSelectors: [SELECTORS.userTurn, SELECTORS.assistantTurn],
         },
       });
     }
 
-    return Array.from(container.children);
+    return Array.from(nodes);
   }
 
   protected parseTurn(el: Element): Turn | null {
-    const tagName = el.tagName.toLowerCase();
-    const className = el.className.toLowerCase();
+    const tag = el.tagName.toLowerCase();
 
-    let role: 'user' | 'assistant';
+    // User turn
+    if (tag === SELECTORS.userTurn) {
+      // Prefer the dedicated content element; fall back to the wrapper itself.
+      // user-query-content is typically a plain text container with no hidden chrome.
+      const bodyEl = el.querySelector(SELECTORS.userBody) ?? el;
+      const content = this.extractTextContent(bodyEl);
+      if (!content) return null;
 
-    if (tagName === 'user-query' || className.includes('user-query') || className.includes('human')) {
-      role = 'user';
-    } else if (tagName === 'model-response' || className.includes('model-response') || className.includes('model')) {
-      role = 'assistant';
-    } else {
-      // Skip non-turn elements
-      return null;
+      return {
+        role: 'user',
+        content,
+        codeBlocks: this.extractCodeBlocks(bodyEl),
+      };
     }
 
-    const content = this.extractTextContent(el);
-    if (!content) return null;
+    // Assistant turn
+    if (tag === SELECTORS.assistantTurn) {
+      // MUST target message-content specifically.
+      // response-container includes the full component chrome (action buttons, etc.)
+      // and must not be used as the text source.
+      const bodyEl = el.querySelector(SELECTORS.assistantBody);
+      if (!bodyEl) {
+        logger.warn(MODULE, 'parseTurn',
+          'model-response found but message-content missing — skipping turn', {
+            wrapperOuterHtml: el.outerHTML.slice(0, 200),
+          });
+        return null;
+      }
 
-    const codeBlocks = this.extractCodeBlocks(el);
+      const content = this.extractTextContent(bodyEl);
+      if (!content) return null;
 
-    return { role, content, codeBlocks };
+      return {
+        role: 'assistant',
+        content,
+        codeBlocks: this.extractCodeBlocks(bodyEl),
+      };
+    }
+
+    // Should not happen given the combined selector, but guard anyway
+    return null;
   }
 
+  /**
+   * Strips <pre> blocks (captured separately as codeBlocks) and returns clean prose text.
+   */
   private extractTextContent(el: Element): string {
     const clone = el.cloneNode(true) as Element;
     clone.querySelectorAll('pre').forEach((pre) => pre.remove());
 
-    // Gemini often wraps text in <p> elements inside the response
     const paragraphs = clone.querySelectorAll('p');
     if (paragraphs.length > 0) {
       return Array.from(paragraphs)

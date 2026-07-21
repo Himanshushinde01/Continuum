@@ -1,105 +1,112 @@
 import type { Turn } from '../../core/models/conversation';
 import { ExtractionError } from '../../shared/errors/error-types';
+import { logger } from '../../shared/logger/logger';
 import { BaseExtractor } from './base-extractor';
 
 /**
- * Claude.ai DOM extractor.
- * Responsible ONLY for Claude-specific DOM queries.
- * All retry/wait logic is inherited from BaseExtractor.
+ * Claude.ai DOM extractor (updated July 2026).
  *
- * Claude DOM structure (as of July 2026):
- *   - Conversation turns are inside [data-testid="conversation-turn-*"] elements
- *   - User turns have class containing "human" or data-author="human"
- *   - Assistant turns wrap in the main content block
+ * Key selectors:
+ *   [data-testid="user-message"]  — user turn wrapper
+ *   [data-is-streaming]           — assistant turn wrapper (present regardless of streaming state)
+ *   .font-claude-response         — the real assistant text body
+ *
+ * ⚠ DO NOT use node.textContent on the assistant wrapper directly, or
+ *   node.querySelector('h2'). Claude injects an sr-only accessibility element:
+ *     <h2 data-find-omitted class="sr-only select-none">Claude responded: …</h2>
+ *   which duplicates the full text prefixed with "Claude responded: ".
+ *   We must query .font-claude-response explicitly to skip it.
  */
+
+const SELECTORS = {
+  userTurn: '[data-testid="user-message"]',
+  assistantTurn: '[data-is-streaming]',
+  assistantTextBody: '.font-claude-response',
+} as const;
+
+const MODULE = 'claude-extractor';
+
 export class ClaudeExtractor extends BaseExtractor {
   readonly platform = 'claude' as const;
 
+  /**
+   * Returns all turn elements in document order, each tagged with role and
+   * the correct text-bearing element (never the sr-only duplicate).
+   */
   protected findTurnElements(): Element[] {
-    // Primary selector — Claude uses data-testid on each turn
-    let turns = Array.from(
-      document.querySelectorAll('[data-testid^="conversation-turn-"]')
+    // Combined selector — querySelectorAll returns nodes in document order,
+    // so user and assistant turns come out correctly interleaved automatically.
+    const nodes = document.querySelectorAll(
+      `${SELECTORS.userTurn}, ${SELECTORS.assistantTurn}`
     );
 
-    // Fallback: look for the conversation container and its direct children
-    if (turns.length === 0) {
-      const container =
-        document.querySelector('[data-testid="conversation"]') ??
-        document.querySelector('.conversation-content') ??
-        document.querySelector('main [class*="conversation"]');
-
-      if (!container) {
-        throw new ExtractionError({
-          code: 'EXTRACTION_CONTAINER_NOT_FOUND',
-          module: 'claude-extractor',
-          fn: 'findTurnElements',
-          message:
-            'Could not find conversation container — Claude DOM structure may have changed',
-          context: {
-            url: window.location.href,
-            triedSelectors: [
-              '[data-testid^="conversation-turn-"]',
-              '[data-testid="conversation"]',
-              '.conversation-content',
-            ],
-          },
-        });
-      }
-
-      turns = Array.from(container.children);
+    if (nodes.length === 0) {
+      throw new ExtractionError({
+        code: 'EXTRACTION_CONTAINER_NOT_FOUND',
+        module: MODULE,
+        fn: 'findTurnElements',
+        message: 'Could not find any conversation turns — Claude DOM structure may have changed',
+        context: {
+          url: window.location.href,
+          triedSelectors: [SELECTORS.userTurn, SELECTORS.assistantTurn],
+        },
+      });
     }
 
-    return turns;
+    // Return the wrappers; parseTurn handles the per-role extraction logic.
+    return Array.from(nodes);
   }
 
   protected parseTurn(el: Element): Turn | null {
-    // Determine role from testid or class
-    const testId = el.getAttribute('data-testid') ?? '';
-    const isUser =
-      testId.includes('human') ||
-      el.classList.contains('human') ||
-      el.querySelector('[data-message-author-role="user"]') !== null ||
-      el.querySelector('[class*="human"]') !== null;
+    // User turn
+    if (el.matches(SELECTORS.userTurn)) {
+      const content = this.extractTextContent(el);
+      if (!content) return null;
 
-    const isAssistant =
-      testId.includes('assistant') ||
-      el.classList.contains('assistant') ||
-      el.querySelector('[data-message-author-role="assistant"]') !== null ||
-      el.querySelector('[class*="assistant"]') !== null;
-
-    // If we can't determine role, try heuristic: user messages are shorter and plainer
-    let role: 'user' | 'assistant';
-    if (isUser) {
-      role = 'user';
-    } else if (isAssistant) {
-      role = 'assistant';
-    } else {
-      // Skip elements that are clearly not conversation turns
-      const text = el.textContent?.trim() ?? '';
-      if (text.length === 0) return null;
-      // Default heuristic — this may be wrong, but better than dropping the turn
-      role = 'user';
+      return {
+        role: 'user',
+        content,
+        codeBlocks: this.extractCodeBlocks(el),
+      };
     }
 
-    const content = this.extractTextContent(el);
+    // Assistant turn wrapper ([data-is-streaming])
+    // The real text lives in .font-claude-response.
+    // DO NOT use el.textContent — it includes the sr-only <h2> with
+    // "Claude responded: …" prefix that would corrupt the captured text.
+    const textEl = el.querySelector(SELECTORS.assistantTextBody);
+    if (!textEl) {
+      logger.warn(MODULE, 'parseTurn',
+        'Assistant wrapper found but .font-claude-response missing — skipping turn', {
+          wrapperOuterHtml: el.outerHTML.slice(0, 200),
+        });
+      return null;
+    }
+
+    const content = this.extractTextContent(textEl);
     if (!content) return null;
 
-    const codeBlocks = this.extractCodeBlocks(el);
-
     return {
-      role,
+      role: 'assistant',
       content,
-      codeBlocks,
-      timestamp: el.getAttribute('data-timestamp') ?? undefined,
+      codeBlocks: this.extractCodeBlocks(textEl),
     };
   }
 
+  /**
+   * Extracts prose text from an element, stripping <pre> blocks first
+   * (those are captured separately as codeBlocks by the base class).
+   */
   private extractTextContent(el: Element): string {
-    // Remove code block text from the main content to avoid duplication
     const clone = el.cloneNode(true) as Element;
+
+    // Remove code blocks — captured separately via extractCodeBlocks()
     clone.querySelectorAll('pre').forEach((pre) => pre.remove());
 
-    // Claude uses paragraph elements for main text
+    // Also strip the sr-only accessibility heading if it leaked into the clone
+    clone.querySelectorAll('[class*="sr-only"]').forEach((srEl) => srEl.remove());
+
+    // Prefer paragraph elements for clean prose extraction
     const paragraphs = clone.querySelectorAll('p, .prose p, [class*="prose"] p');
     if (paragraphs.length > 0) {
       return Array.from(paragraphs)
