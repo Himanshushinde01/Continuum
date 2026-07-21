@@ -11,7 +11,7 @@ import { dirname, resolve } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const distDir = resolve(root, 'dist');
-const zipPath = resolve(root, 'contextbridge-extension.zip');
+const zipPath = resolve(root, 'continuum-extension.zip');
 
 // 1. Build
 console.log('📦 Building extension...');
@@ -24,5 +24,5 @@ execSync(
   { cwd: root, stdio: 'inherit' }
 );
 
-console.log(`\n✅ Extension packaged: contextbridge-extension.zip`);
+console.log(`\n✅ Extension packaged: continuum-extension.zip`);
 console.log(`   Upload this file to: https://chrome.google.com/webstore/devconsole`);

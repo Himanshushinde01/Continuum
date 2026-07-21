@@ -57,7 +57,7 @@ export function InjectButton({ capture, activeTabId, onSuccess, onError }: Injec
       onSuccess();
     } catch (err) {
       const msg = String(err).includes('Could not establish connection')
-        ? 'ContextBridge not loaded on this page. Navigate to Claude, ChatGPT, or Gemini first.'
+        ? 'Continuum not loaded on this page. Navigate to Claude, ChatGPT, or Gemini first.'
         : `Injection error: ${String(err)}`;
       onError(msg);
       logger.error(MODULE, 'handleInject', msg);

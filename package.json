@@ -1,7 +1,7 @@
 {
   "name": "continuum",
   "version": "1.0.0",
-  "description": "ContextBridge — capture, compress, and carry AI conversation context across Claude, ChatGPT, and Gemini",
+  "description": "Continuum — capture, compress, and carry AI conversation context across Claude, ChatGPT, and Gemini",
   "main": "index.js",
   "scripts": {
     "build": "node scripts/build.mjs",

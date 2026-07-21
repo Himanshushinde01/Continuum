@@ -31,11 +31,11 @@
 > **No store required.** Takes 30 seconds.
 
 1. **[Download the latest release ZIP](https://github.com/Himanshushinde01/Continuum/releases/latest)**
-   - ⚠️ **CRITICAL:** Under the "Assets" section at the bottom of the release, download **`contextbridge-extension.zip`**.
+   - ⚠️ **CRITICAL:** Under the "Assets" section at the bottom of the release, download **`Continuum-extension.zip`**.
    - ❌ **DO NOT** click "Source code (zip)" — it will cause a `Could not load manifest` error because it requires building from scratch.
 
 2. **Extract the ZIP**
-   - Right-click `contextbridge-extension.zip` → Extract All → remember the folder location.
+   - Right-click `Continuum-extension.zip` → Extract All → remember the folder location.
 
 3. **Open Chrome Extensions**
    - Navigate to `chrome://extensions/`
@@ -48,7 +48,7 @@
    - Select the **extracted folder** (it should contain `manifest.json` and `popup.html` right inside it).
 
 6. **Pin it** 🌉
-   - Click the puzzle piece icon in Chrome toolbar → Pin ContextBridge
+   - Click the puzzle piece icon in Chrome toolbar → Pin Continuum
 
 > **Note:** Chrome may show a "Disable developer mode extensions" notification when it starts. Click "Cancel" to keep the extension running. This is normal for extensions not on the Chrome Web Store.
 
@@ -66,13 +66,13 @@ Install directly from the Edge Add-ons store — no developer mode needed:
 
 ### Capture a conversation
 1. Open **Claude, ChatGPT, or Gemini** and have a conversation
-2. Click the **🌉 ContextBridge** icon in your toolbar
+2. Click the **🌉 Continuum** icon in your toolbar
 3. Click **"📸 Capture This Chat"**
 4. Wait for the ✓ confirmation — your conversation is saved locally
 
 ### Inject context into a new chat
 1. Open a **new chat** on Claude, ChatGPT, or Gemini (any platform)
-2. Click the **🌉 ContextBridge** icon
+2. Click the **🌉 Continuum** icon
 3. Select your saved capture from the list
 4. Review the compressed preview + token savings
 5. Click **"🚀 Inject into Current Chat"**

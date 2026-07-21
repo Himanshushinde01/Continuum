@@ -1,7 +1,7 @@
 /**
  * scripts/build.mjs
  *
- * Three-pass build for the ContextBridge Chrome MV3 extension.
+ * Three-pass build for the Continuum Chrome MV3 extension.
  *
  * WHY THREE PASSES?
  * ─────────────────
@@ -88,7 +88,7 @@ await build({
       input: resolve(root, 'src/content-scripts/content-entry.ts'),
       output: {
         format: 'iife',
-        name: 'ContextBridgeContent',   // required by Rollup for IIFE; not used at runtime
+        name: 'ContinuumContent',   // required by Rollup for IIFE; not used at runtime
         inlineDynamicImports: true,     // bundle ALL deps into this one file, zero chunk imports
         entryFileNames: 'content-scripts/content-entry.js',
         // No chunkFileNames needed — inlineDynamicImports prevents any splitting
@@ -114,7 +114,7 @@ await build({
       input: resolve(root, 'src/background/service-worker.ts'),
       output: {
         format: 'iife',
-        name: 'ContextBridgeServiceWorker',
+        name: 'ContinuumServiceWorker',
         inlineDynamicImports: true,
         entryFileNames: 'background/service-worker.js',
       },

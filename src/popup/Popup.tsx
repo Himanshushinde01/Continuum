@@ -201,7 +201,7 @@ export function Popup(): React.JSX.Element {
     } catch (err) {
       // chrome.tabs.sendMessage throws if content script is not running on this page
       const msg = String(err).includes('Could not establish connection')
-        ? 'ContextBridge not loaded on this page. Make sure you are on Claude, ChatGPT, or Gemini and refresh.'
+        ? 'Continuum not loaded on this page. Make sure you are on Claude, ChatGPT, or Gemini and refresh.'
         : `Capture error: ${String(err)}`;
       setStatus('error');
       setStatusMessage(msg);
@@ -228,7 +228,7 @@ export function Popup(): React.JSX.Element {
       <div style={styles.header}>
         <div style={styles.logo}>
           <div style={styles.logoIcon}>🌉</div>
-          <span style={styles.title}>ContextBridge</span>
+          <span style={styles.title}>Continuum</span>
         </div>
         <div style={styles.subtitle}>Carry your AI context across platforms — free &amp; local.</div>
       </div>

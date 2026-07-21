@@ -43,7 +43,7 @@ class PopupErrorBoundary extends React.Component<
           gap: '12px',
         }}>
           <div style={{ color: '#f87171', fontWeight: 600, fontSize: '14px' }}>
-            ⚠ ContextBridge encountered a render error
+             ⚠ Continuum encountered a render error
           </div>
           <code style={{
             fontSize: '11px',

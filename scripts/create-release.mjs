@@ -1,7 +1,7 @@
 // scripts/create-release.mjs
 // Prepares a GitHub release:
 // 1. Builds the extension
-// 2. Creates contextbridge-extension.zip
+// 2. Creates continuum-extension.zip
 // 3. Prints the git commands to tag and push the release
 //
 // Run with: node scripts/create-release.mjs
@@ -17,9 +17,9 @@ const root = resolve(__dirname, '..');
 // Read version from package.json
 const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf-8'));
 const version = pkg.version;
-const zipName = `contextbridge-extension.zip`;
+const zipName = `continuum-extension.zip`;
 
-console.log(`\n🚀 Preparing ContextBridge v${version} release...\n`);
+console.log(`\n🚀 Preparing Continuum v${version} release...\n`);
 
 // 1. Run tests first
 console.log('1️⃣  Running tests...');
@@ -59,7 +59,7 @@ console.log(`
 4. On GitHub.com:
    → Go to your repo → Releases → "Draft a new release"
    → Tag: v${version}
-   → Title: ContextBridge v${version}
+   → Title: Continuum v${version}
    → Upload: ${zipName}
    → Click "Publish release"
 

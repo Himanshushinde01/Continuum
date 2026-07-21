@@ -8,7 +8,7 @@ dist/
 *.js.map
 
 # The release zip is uploaded to GitHub Releases, not committed
-contextbridge-extension.zip
+continuum-extension.zip
 
 # OS files
 .DS_Store

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ContextBridge",
+  "name": "Continuum",
   "version": "1.0.0",
   "description": "Capture, compress, and carry AI conversation context across Claude, ChatGPT, and Gemini — free, local, no backend.",
   "icons": {
@@ -11,7 +11,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ContextBridge",
+    "default_title": "Continuum",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"

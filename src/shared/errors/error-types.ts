@@ -1,5 +1,5 @@
 /**
- * BaseAppError and all typed subclasses used throughout ContextBridge.
+ * BaseAppError and all typed subclasses used throughout Continuum.
  * Every error must include: code, module, fn, message.
  * No silent failures — every catch block uses these types.
  */

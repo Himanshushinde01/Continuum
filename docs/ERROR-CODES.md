@@ -1,4 +1,4 @@
-# ContextBridge — Error Codes Registry
+# Continuum — Error Codes Registry
 
 Every error code used anywhere in the codebase is registered here with a one-line description.
 No error code may be used without an entry in this table.

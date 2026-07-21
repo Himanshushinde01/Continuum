@@ -10,7 +10,7 @@ export const logger = {
     message: string,
     meta?: Record<string, unknown>
   ): void {
-    console.error(`[ContextBridge][${module}.${fn}]`, message, meta ?? '');
+    console.error(`[Continuum][${module}.${fn}]`, message, meta ?? '');
   },
 
   warn(
@@ -19,7 +19,7 @@ export const logger = {
     message: string,
     meta?: Record<string, unknown>
   ): void {
-    console.warn(`[ContextBridge][${module}.${fn}]`, message, meta ?? '');
+    console.warn(`[Continuum][${module}.${fn}]`, message, meta ?? '');
   },
 
   info(
@@ -28,7 +28,7 @@ export const logger = {
     message: string,
     meta?: Record<string, unknown>
   ): void {
-    console.info(`[ContextBridge][${module}.${fn}]`, message, meta ?? '');
+    console.info(`[Continuum][${module}.${fn}]`, message, meta ?? '');
   },
 
   debug(
@@ -37,6 +37,6 @@ export const logger = {
     message: string,
     meta?: Record<string, unknown>
   ): void {
-    console.debug(`[ContextBridge][${module}.${fn}]`, message, meta ?? '');
+    console.debug(`[Continuum][${module}.${fn}]`, message, meta ?? '');
   },
 };
