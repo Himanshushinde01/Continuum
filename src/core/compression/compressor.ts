@@ -1,5 +1,6 @@
 import type { NormalizedConversation } from '../../core/models/conversation';
 import type { CompressionStrategy } from './strategies/strategy';
+import { CodeBlockDeduplicator } from './strategies/code-block-deduplicator';
 import { BoilerplateStripper } from './strategies/boilerplate-stripper';
 import { CodeBlockSummarizer } from './strategies/code-block-summarizer';
 import { ExtractiveSummarizer } from './strategies/extractive-summarizer';
@@ -13,13 +14,20 @@ const MODULE = 'compressor';
 /**
  * Compressor — orchestrates the compression pipeline.
  * ONE job: run strategies in order and return the compressed conversation.
- * Strategy order matters: boilerplate first, then code, then text, then mark recents.
+ *
+ * Default pipeline order (matters):
+ *  1. CodeBlockDeduplicator — remove exact-duplicate code blocks (keeps last occurrence)
+ *  2. BoilerplateStripper   — remove empty turns, UI chrome, vacuous acknowledgements
+ *  3. CodeBlockSummarizer   — summarize/trim oversized code blocks
+ *  4. ExtractiveSummarizer  — trim older turns' prose
+ *  5. RecentTurnsPreserver  — mark recent turns as verbatim
  */
 export class Compressor {
   private readonly strategies: CompressionStrategy[];
 
   constructor(strategies?: CompressionStrategy[]) {
     this.strategies = strategies ?? [
+      new CodeBlockDeduplicator(),
       new BoilerplateStripper(),
       new CodeBlockSummarizer(),
       new ExtractiveSummarizer(),

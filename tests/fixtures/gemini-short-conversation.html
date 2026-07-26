@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Gemini Test Fixture</title></head>
+<body>
+<!--
+  Reflects the real Gemini DOM structure (July 2026).
+
+  Key points:
+  - querySelectorAll('user-query, model-response') returns turns in document order.
+  - User turns: <user-query> custom element containing <user-query-content>
+    which holds the actual user text (no hidden chrome inside user-query-content).
+  - Assistant turns: <model-response> custom element containing:
+      <response-container>  — DO NOT use this for text (includes action buttons, etc.)
+        <response-element>
+          <message-content> — the real text body; target this explicitly.
+  - Code blocks live inside <message-content> as <pre><code class="language-*">.
+  - Simulated action chrome is included in response-container to verify the
+    extractor does NOT accidentally capture it.
+-->
+
+<!-- Turn 1: User -->
+<user-query>
+  <user-query-content>
+    <p>Explain how transformers work in machine learning at a high level.</p>
+  </user-query-content>
+</user-query>
+
+<!-- Turn 2: Assistant -->
+<model-response>
+  <response-container>
+    <!-- Simulated UI chrome that must NOT appear in captured text -->
+    <div class="response-actions" aria-hidden="true">
+      <button>Regenerate</button>
+      <button>Copy</button>
+      <button>Thumbs up</button>
+    </div>
+    <response-element>
+      <message-content>
+        <p>Transformers are a neural network architecture introduced in the paper "Attention is All You Need" (2017). The key innovation is the self-attention mechanism, which allows the model to weigh the importance of different words in a sequence relative to each other.</p>
+        <p>At a high level: input tokens are converted to embeddings, positional encoding is added, then multiple layers of multi-head self-attention and feed-forward networks process the sequence. This allows the model to capture long-range dependencies much better than RNNs.</p>
+      </message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+<!-- Turn 3: User -->
+<user-query>
+  <user-query-content>
+    <p>What is multi-head attention specifically?</p>
+  </user-query-content>
+</user-query>
+
+<!-- Turn 4: Assistant -->
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true">
+      <button>Regenerate</button>
+      <button>Copy</button>
+    </div>
+    <response-element>
+      <message-content>
+        <p>Multi-head attention runs multiple attention operations ("heads") in parallel, each learning different aspects of relationships between tokens. The outputs are then concatenated and projected.</p>
+        <p>Each head computes: Attention(Q, K, V) = softmax(QK^T / sqrt(d_k)) * V where Q, K, V are learned linear projections of the input.</p>
+        <pre><code class="language-python">import torch
+import torch.nn as nn
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super().__init__()
+        self.num_heads = num_heads
+        self.d_k = d_model // num_heads
+        self.W_q = nn.Linear(d_model, d_model)
+        self.W_k = nn.Linear(d_model, d_model)
+        self.W_v = nn.Linear(d_model, d_model)</code></pre>
+      </message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+</body>
+</html>

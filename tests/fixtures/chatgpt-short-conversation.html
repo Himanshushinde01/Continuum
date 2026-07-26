@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>ChatGPT Test Fixture</title></head>
+<body>
+<!--
+  Reflects the real ChatGPT DOM structure (July 2026).
+
+  Key points:
+  - querySelectorAll('[data-message-author-role]') returns both user and
+    assistant role divs in document order — this is the primary selector.
+  - Article wrappers still exist in the real DOM but are NOT the primary selector;
+    the role div is the direct query target.
+  - User turns: role div contains plain <p> elements, no .markdown wrapper.
+  - Assistant turns: role div contains a nested .markdown (or .markdown.prose) div
+    which holds the real prose; do NOT use role div's textContent directly as it
+    may include hidden UI chrome (copy buttons, regeneration labels, etc.).
+  - data-message-id and data-message-model-slug attributes appear on assistant
+    role divs in the real DOM — included here for realism.
+-->
+
+<main>
+  <!-- Article wrappers exist but are not the query target -->
+  <article>
+    <!-- Turn 1: User -->
+    <div data-message-author-role="user" data-message-id="msg-001">
+      <p>What is the difference between a stack and a queue in data structures?</p>
+    </div>
+  </article>
+
+  <article>
+    <!-- Turn 2: Assistant — text lives in .markdown, not directly on role div -->
+    <div data-message-author-role="assistant" data-message-id="msg-002" data-message-model-slug="gpt-4o">
+      <!-- Simulate UI chrome that should NOT appear in captured text -->
+      <button style="display:none" aria-label="Copy message">Copy</button>
+      <div class="markdown prose">
+        <p>A stack and a queue are both linear data structures but they differ in how elements are added and removed.</p>
+        <p>Stack follows LIFO (Last In First Out) — the last element pushed is the first to be popped. Think of a stack of plates.</p>
+        <p>Queue follows FIFO (First In First Out) — the first element enqueued is the first to be dequeued. Think of a line at a ticket counter.</p>
+        <pre><code class="language-python">stack = []
+stack.append(1)  # push
+stack.pop()      # pop -> 1
+
+from collections import deque
+queue = deque()
+queue.append(1)    # enqueue
+queue.popleft()    # dequeue -> 1</code></pre>
+      </div>
+    </div>
+  </article>
+
+  <article>
+    <!-- Turn 3: User -->
+    <div data-message-author-role="user" data-message-id="msg-003">
+      <p>Can you give me a real-world use case for each?</p>
+    </div>
+  </article>
+
+  <article>
+    <!-- Turn 4: Assistant -->
+    <div data-message-author-role="assistant" data-message-id="msg-004" data-message-model-slug="gpt-4o">
+      <button style="display:none" aria-label="Copy message">Copy</button>
+      <div class="markdown prose">
+        <p>Stack use cases: browser back button history, undo/redo functionality in text editors, function call stack in any programming language.</p>
+        <p>Queue use cases: print job scheduling, CPU task scheduling, BFS graph traversal, message queues in distributed systems.</p>
+      </div>
+    </div>
+  </article>
+</main>
+</body>
+</html>

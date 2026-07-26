@@ -130,6 +130,7 @@ export function Popup(): React.JSX.Element {
   const [statusMessage, setStatusMessage] = useState('');
   const [currentTabUrl, setCurrentTabUrl] = useState<string>('');
   const [activeTabId, setActiveTabId] = useState<number | null>(null);
+  const [partialCaptureWarning, setPartialCaptureWarning] = useState<string | null>(null);
 
   // Determine if we're on a supported AI platform
   const isOnSupportedPlatform =
@@ -195,6 +196,14 @@ export function Popup(): React.JSX.Element {
 
       // Capture succeeded — refresh the list
       await loadCaptures();
+
+      // Show partial-capture warning if the background flagged it
+      if (response.partialCapture && response.partialCaptureMessage) {
+        setPartialCaptureWarning(response.partialCaptureMessage);
+      } else {
+        setPartialCaptureWarning(null);
+      }
+
       setStatus('success');
       setStatusMessage('✓ Conversation captured!');
       setTimeout(() => setStatus('idle'), 3000);
@@ -263,6 +272,42 @@ export function Popup(): React.JSX.Element {
       {status !== 'idle' && (
         <div style={statusStyle}>{statusMessage}</div>
       )}
+
+      {/* Partial capture warning — shown when some turns may have been missed */}
+      {partialCaptureWarning && (
+        <div style={{
+          margin: '0 12px 8px',
+          padding: '8px 12px',
+          background: 'rgba(234, 179, 8, 0.12)',
+          border: '1px solid rgba(234, 179, 8, 0.35)',
+          borderRadius: '8px',
+          fontSize: '11px',
+          color: '#fbbf24',
+          lineHeight: '1.5',
+          display: 'flex',
+          gap: '8px',
+          alignItems: 'flex-start',
+        }}>
+          <span style={{ flexShrink: 0 }}>⚠️</span>
+          <span>{partialCaptureWarning}</span>
+          <button
+            onClick={() => setPartialCaptureWarning(null)}
+            style={{
+              flexShrink: 0,
+              background: 'none',
+              border: 'none',
+              color: '#fbbf24',
+              cursor: 'pointer',
+              fontSize: '14px',
+              padding: '0',
+              lineHeight: '1',
+              marginLeft: 'auto',
+            }}
+            aria-label="Dismiss warning"
+          >×</button>
+        </div>
+      )}
+
 
       {/* Captures list */}
       {captures.length > 0 && (

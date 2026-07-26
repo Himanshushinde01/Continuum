@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Gemini Long Conversation Fixture</title></head>
+<body>
+<!--
+  Simulates a long Gemini conversation (12 turns) for the completeness check test.
+  All turns use user-query / model-response custom elements.
+  Assistant text lives in message-content, NOT response-container.
+-->
+
+<user-query>
+  <user-query-content><p>I'm building a React app and getting "Cannot read properties of null (reading 'useState')" in my component.</p></user-query-content>
+</user-query>
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true"><button>Copy</button></div>
+    <response-element>
+      <message-content><p>This error typically means React is imported incorrectly or there are multiple React instances. Check that you're importing React from the same source everywhere. If using hooks, make sure the component is a function component, not a class component.</p></message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+<user-query>
+  <user-query-content><p>I'm using function components. The error happens after I added a custom hook. Could that be the issue?</p></user-query-content>
+</user-query>
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true"><button>Copy</button></div>
+    <response-element>
+      <message-content><p>Yes — custom hooks must follow the rules of hooks. The hook name must start with "use" and the hook must be called unconditionally (not inside if statements or loops). Also verify the hook file imports React from the same package as your app. Multiple React instances in a monorepo is a common cause of this error.</p></message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+<user-query>
+  <user-query-content><p>Found it! I had a symlinked package in node_modules that bundled its own React. Fixed with resolve.alias in webpack. Now I have a different error: "Warning: Can't perform a React state update on an unmounted component."</p></user-query-content>
+</user-query>
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true"><button>Copy</button></div>
+    <response-element>
+      <message-content><p>This warning means you're calling setState after a component has been unmounted, usually from an async operation (fetch, setTimeout) that completes after the component unmounts. The fix is to use a cleanup function in useEffect that cancels the async operation or sets an isMounted flag.</p></message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+<user-query>
+  <user-query-content><p>How do I implement the isMounted pattern correctly?</p></user-query-content>
+</user-query>
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true"><button>Copy</button></div>
+    <response-element>
+      <message-content>
+        <p>Use a ref to track mounted state inside useEffect:</p>
+        <pre><code class="language-javascript">useEffect(() => {
+  let isMounted = true;
+  fetchData().then(data => {
+    if (isMounted) setState(data);
+  });
+  return () => { isMounted = false; };
+}, []);</code></pre>
+        <p>Better yet, use AbortController to cancel the fetch request itself rather than just ignoring the result.</p>
+      </message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+<user-query>
+  <user-query-content><p>The AbortController approach worked. Now I need to add React Query. Should I remove my useEffect fetch logic?</p></user-query-content>
+</user-query>
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true"><button>Copy</button></div>
+    <response-element>
+      <message-content><p>Yes — React Query replaces manual fetch logic entirely. It handles caching, background refetching, loading states, and error states automatically. Switch to useQuery for reads and useMutation for writes. Your useEffect fetch code can be deleted once you have the equivalent useQuery set up.</p></message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+<user-query>
+  <user-query-content><p>React Query is working perfectly now. The app is much cleaner. Thank you!</p></user-query-content>
+</user-query>
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true"><button>Copy</button></div>
+    <response-element>
+      <message-content><p>Great, React Query is one of those libraries that transforms how you think about server state in React once you switch to it. Next step is to configure the QueryClient's default staleTime and gcTime to match your data's freshness requirements — defaults are conservative and you may want to tune them for your specific use case.</p></message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+</body>
+</html>

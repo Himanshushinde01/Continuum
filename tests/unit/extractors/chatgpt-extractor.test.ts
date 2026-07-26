@@ -9,8 +9,8 @@ function loadFixture(name: string): Document {
 }
 
 describe('ChatGPTExtractor', () => {
-  it('extracts 4 turns from the ChatGPT fixture', async () => {
-    const doc = loadFixture('chatgpt-conversation.html');
+  it('extracts 4 turns from the short ChatGPT fixture', async () => {
+    const doc = loadFixture('chatgpt-short-conversation.html');
     vi.stubGlobal('document', doc);
     vi.stubGlobal('window', { location: { href: 'https://chatgpt.com/c/test' } });
 
@@ -21,7 +21,6 @@ describe('ChatGPTExtractor', () => {
     if (!result.ok) return;
 
     expect(result.value.sourcePlatform).toBe('chatgpt');
-    // Fixture has 2 user + 2 assistant = 4 turns
     expect(result.value.turns).toHaveLength(4);
     expect(result.value.turns[0]?.role).toBe('user');
     expect(result.value.turns[1]?.role).toBe('assistant');
@@ -30,7 +29,7 @@ describe('ChatGPTExtractor', () => {
   });
 
   it('extracts code blocks from assistant turn', async () => {
-    const doc = loadFixture('chatgpt-conversation.html');
+    const doc = loadFixture('chatgpt-short-conversation.html');
     vi.stubGlobal('document', doc);
     vi.stubGlobal('window', { location: { href: 'https://chatgpt.com/c/test' } });
 
@@ -46,7 +45,7 @@ describe('ChatGPTExtractor', () => {
   });
 
   it('does NOT capture hidden UI chrome (Copy button text) in assistant content', async () => {
-    const doc = loadFixture('chatgpt-conversation.html');
+    const doc = loadFixture('chatgpt-short-conversation.html');
     vi.stubGlobal('document', doc);
     vi.stubGlobal('window', { location: { href: 'https://chatgpt.com/c/test' } });
 
@@ -58,12 +57,48 @@ describe('ChatGPTExtractor', () => {
 
     for (const turn of result.value.turns) {
       if (turn.role === 'assistant') {
-        // The hidden "Copy" button lives in the role div wrapper outside .markdown.
-        // If the extractor mistakenly uses role div's textContent, this leaks in.
         expect(turn.content).not.toContain('Copy');
         expect(turn.content).not.toContain('Regenerate');
       }
     }
+  });
+
+  it('extracts all 12 turns from the long/scrolled fixture (completeness check)', async () => {
+    const doc = loadFixture('chatgpt-long-conversation-scrolled.html');
+    vi.stubGlobal('document', doc);
+    vi.stubGlobal('window', { location: { href: 'https://chatgpt.com/c/test' } });
+
+    const { ChatGPTExtractor } = await import('../../../src/content-scripts/extractors/chatgpt-extractor');
+    const result = await new ChatGPTExtractor().extract();
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.turns).toHaveLength(12);
+    expect(result.value.extractedTurnCount).toBe(12);
+  });
+
+  it('extracts attachments and never merges filename into content', async () => {
+    const doc = loadFixture('chatgpt-with-attachment.html');
+    vi.stubGlobal('document', doc);
+    vi.stubGlobal('window', { location: { href: 'https://chatgpt.com/c/test' } });
+
+    const { ChatGPTExtractor } = await import('../../../src/content-scripts/extractors/chatgpt-extractor');
+    const result = await new ChatGPTExtractor().extract();
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const userTurns = result.value.turns.filter((t) => t.role === 'user');
+    const firstUserTurn = userTurns[0];
+    expect(firstUserTurn).toBeDefined();
+
+    // Attachment detected from data-file-name
+    expect(firstUserTurn!.attachments).toContain('[Attached: requirements.txt]');
+
+    // Filename and type badge must NOT appear in content
+    expect(firstUserTurn!.content).not.toContain('requirements.txt');
+    expect(firstUserTurn!.content).not.toContain('TXT');
   });
 
   it('returns ExtractionError when no turns found', async () => {

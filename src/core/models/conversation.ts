@@ -17,6 +17,12 @@ export interface Turn {
   role: Role;
   content: string;
   codeBlocks: CodeBlock[];
+  /**
+   * File attachments detected in this turn, stored as clean human-readable placeholders.
+   * e.g. ["[Attached: E01-Hadoop Configuration.pdf]", "[Attached: diagram.png]"]
+   * NEVER merged into `content` — kept separate so they can be listed in the Attachments section.
+   */
+  attachments: string[];
   timestamp?: string;
 }
 
@@ -25,4 +31,11 @@ export interface NormalizedConversation {
   turns: Turn[];
   /** ISO 8601 timestamp of when the capture was taken. */
   capturedAt: string;
+  /**
+   * Raw DOM element count BEFORE parseTurn() filtering.
+   * Used for completeness check: if extractedTurnCount > turns.length, some turns were dropped
+   * (possibly due to virtualization — user should be warned).
+   * Set by base-extractor after scrolling and querying the DOM.
+   */
+  extractedTurnCount?: number;
 }

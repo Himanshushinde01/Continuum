@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Gemini Attachment Fixture</title></head>
+<body>
+<!--
+  Simulates a Gemini conversation where the user uploads an image.
+  Gemini renders image uploads as elements with class containing "image-upload"
+  or "uploaded-file". The img alt attribute holds the filename.
+  
+  Key test assertions:
+  - turn.attachments should contain "[Attached: architecture-diagram.png]"
+  - turn.content must NOT contain the alt text or class text concatenated in
+  - response-container chrome (Copy, Regenerate buttons) must not appear in assistant content
+-->
+
+<!-- Turn 1: User uploads an image -->
+<user-query>
+  <user-query-content>
+    <!-- Image upload — must be detected by alt text and stripped from content -->
+    <div class="image-upload">
+      <img src="data:image/png;base64,abc" alt="architecture-diagram.png" />
+    </div>
+    <p>I've attached a diagram of my current system architecture. Can you identify any potential bottlenecks?</p>
+  </user-query-content>
+</user-query>
+
+<!-- Turn 2: Assistant response -->
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true">
+      <button>Regenerate</button>
+      <button>Copy</button>
+      <button>Thumbs up</button>
+    </div>
+    <response-element>
+      <message-content>
+        <p>Looking at your architecture diagram, I can see several potential bottlenecks. The most significant is the single database instance handling both read and write traffic — at scale, you'll want to add read replicas and potentially a caching layer like Redis in front of frequently-read data.</p>
+        <p>The API gateway also appears to be a single point of failure. Consider adding a load balancer in front of multiple API gateway instances, with health checks and automatic failover.</p>
+      </message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+<!-- Turn 3: Follow-up -->
+<user-query>
+  <user-query-content>
+    <p>What caching strategy would you recommend for this use case?</p>
+  </user-query-content>
+</user-query>
+
+<!-- Turn 4: Assistant -->
+<model-response>
+  <response-container>
+    <div class="response-actions" aria-hidden="true">
+      <button>Regenerate</button>
+      <button>Copy</button>
+    </div>
+    <response-element>
+      <message-content>
+        <p>For your read-heavy workload, I'd recommend a cache-aside pattern with Redis. When a read request comes in, check the cache first. On a cache miss, read from the database, store the result in Redis with an appropriate TTL, then return the result. Invalidate cache entries on writes to the corresponding data.</p>
+      </message-content>
+    </response-element>
+  </response-container>
+</model-response>
+
+</body>
+</html>

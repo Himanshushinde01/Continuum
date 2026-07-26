@@ -13,6 +13,12 @@ export interface CaptureMetadata {
   originalTokenEstimate: number;
   compressedTokenEstimate: number;
   turnCount: number;
+  /**
+   * Raw DOM element count before parseTurn() filtering.
+   * If extractedTurnCount > turnCount, the capture may be partial
+   * (some turns dropped silently — warn the user).
+   */
+  extractedTurnCount: number;
 }
 
 export interface Capture {

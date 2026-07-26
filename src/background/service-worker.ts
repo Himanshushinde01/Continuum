@@ -68,6 +68,10 @@ async function handleCaptureRequest(
     return { type: 'ACK', success: false, error: mdResult.error.describe() };
   }
 
+  const extractedTurnCount = conversation.extractedTurnCount ?? conversation.turns.length;
+  const parsedTurnCount = conversation.turns.length;
+  const isPartial = extractedTurnCount > parsedTurnCount;
+
   const capture: import('../core/models/capture').Capture = {
     metadata: {
       id,
@@ -76,7 +80,8 @@ async function handleCaptureRequest(
       capturedAt: conversation.capturedAt,
       originalTokenEstimate: originalTokens,
       compressedTokenEstimate: compressedTokens,
-      turnCount: conversation.turns.length,
+      turnCount: parsedTurnCount,
+      extractedTurnCount,
     },
     conversation,
     contextMarkdown: mdResult.value,
@@ -91,11 +96,31 @@ async function handleCaptureRequest(
     id,
     originalTokens,
     compressedTokens,
+    parsedTurnCount,
+    extractedTurnCount,
+    isPartial,
     tabId: sender.tab?.id,
   });
 
-  return { type: 'ACK', success: true };
+  if (isPartial) {
+    logger.warn(MODULE, 'handleCaptureRequest',
+      `Partial capture: DOM had ${extractedTurnCount} elements but only ${parsedTurnCount} turns parsed — conversation may be incomplete`,
+      { id, extractedTurnCount, parsedTurnCount }
+    );
+  }
+
+  // Return a typed AckResponse — content-entry.ts will forward partialCapture fields to popup
+  const ack: AckResponse & { partialCapture?: boolean; partialCaptureMessage?: string } = {
+    type: 'ACK',
+    success: true,
+  };
+  if (isPartial) {
+    ack.partialCapture = true;
+    ack.partialCaptureMessage = `Captured ${parsedTurnCount} of ${extractedTurnCount}+ turns — some older messages may be missing. Try scrolling to the top of the conversation and capturing again.`;
+  }
+  return ack;
 }
+
 
 async function handleListCaptures(): Promise<CaptureListResponse> {
   const result = await captureRepository.list();

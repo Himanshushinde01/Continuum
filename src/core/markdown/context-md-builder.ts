@@ -1,6 +1,8 @@
 import type { NormalizedConversation, Turn } from '../models/conversation';
 import type { Capture, CaptureMetadata } from '../models/capture';
 import { tokenEstimator } from '../compression/token-estimator';
+import { extractDecisions } from '../compression/strategies/decision-extractor';
+import { extractProblemSolutions } from '../compression/strategies/problem-solution-extractor';
 import { ValidationError } from '../../shared/errors/error-types';
 import { type Result, Ok, Err } from '../../shared/errors/result';
 import { RECENT_TURNS_TO_KEEP } from '../../shared/constants';
@@ -11,11 +13,20 @@ const MODULE = 'context-md-builder';
 /**
  * ContextMdBuilder — ONE job: Capture → context.md string, and reverse parse.
  * No DOM access, no side effects. Pure data transformation.
+ *
+ * Output section order:
+ *   Frontmatter
+ *   ## Goal
+ *   ## Attachments           (new — lists [Attached: ...] placeholders)
+ *   ## Key Decisions         (real decisions, not first-sentence positional heuristic)
+ *   ## Current State
+ *   ## Problems Encountered / Solutions Applied  (new — debugging fidelity)
+ *   ## Code / Artifacts      (deduplicated)
+ *   ## Recent Turns (verbatim)
  */
 export const contextMdBuilder = {
   /**
    * Build context.md string from a compressed conversation.
-   * Output format matches the data model in PRD §9.
    */
   build(
     conversation: NormalizedConversation,
@@ -36,29 +47,36 @@ export const contextMdBuilder = {
     const recentStart = Math.max(0, conversation.turns.length - RECENT_TURNS_TO_KEEP);
     const olderTurns = conversation.turns.slice(0, recentStart);
     const recentTurns = conversation.turns.slice(recentStart);
+    const allTurns = conversation.turns;
 
     const frontmatter = buildFrontmatter(conversation, metadata, compressedTokens);
-    const goal = buildGoalSection(conversation.turns);
-    const keyDecisions = buildKeyDecisions(olderTurns);
+    const goal = buildGoalSection(allTurns);
+    const attachments = buildAttachmentsSection(allTurns);
+    const keyDecisions = buildKeyDecisions(allTurns);
     const currentState = buildCurrentState(olderTurns);
-    const codeArtifacts = buildCodeArtifacts(conversation.turns);
+    const problemsSolutions = buildProblemsAndSolutions(allTurns);
+    const codeArtifacts = buildCodeArtifacts(allTurns);
     const recentTurnsSection = buildRecentTurns(recentTurns);
 
-    const md = [
+    const sections: (string | null)[] = [
       frontmatter,
       '## Goal',
       goal,
+      attachments ? '## Attachments' : null,
+      attachments || null,
       '## Key Decisions',
       keyDecisions,
       '## Current State',
       currentState,
+      problemsSolutions ? '## Problems Encountered / Solutions Applied' : null,
+      problemsSolutions || null,
       codeArtifacts.length > 0 ? '## Code / Artifacts' : null,
       codeArtifacts.length > 0 ? codeArtifacts : null,
       '## Recent Turns (verbatim)',
       recentTurnsSection,
-    ]
-      .filter(Boolean)
-      .join('\n\n');
+    ];
+
+    const md = sections.filter(Boolean).join('\n\n');
 
     logger.info(MODULE, 'build', 'Built context.md', {
       captureId: metadata.id,
@@ -67,6 +85,8 @@ export const contextMdBuilder = {
       compressionRatio: metadata.originalTokenEstimate > 0
         ? Math.round((1 - compressedTokens / metadata.originalTokenEstimate) * 100)
         : 0,
+      hasAttachments: !!attachments,
+      hasProblemsSolutions: !!problemsSolutions,
     });
 
     return Ok(md);
@@ -97,6 +117,10 @@ export const contextMdBuilder = {
             meta.compressedTokenEstimate = parseInt(value, 10);
           } else if (key?.trim() === 'original_tokens_est') {
             meta.originalTokenEstimate = parseInt(value, 10);
+          } else if (key?.trim() === 'turn_count') {
+            meta.turnCount = parseInt(value, 10);
+          } else if (key?.trim() === 'extracted_turn_count') {
+            meta.extractedTurnCount = parseInt(value, 10);
           }
         }
       }
@@ -122,17 +146,18 @@ function buildFrontmatter(
   metadata: Pick<CaptureMetadata, 'id' | 'name' | 'originalTokenEstimate'>,
   compressedTokens: number
 ): string {
+  const extractedCount = conversation.extractedTurnCount ?? conversation.turns.length;
   return `---
 source_platform: ${conversation.sourcePlatform}
 captured_at: ${conversation.capturedAt}
 turn_count: ${conversation.turns.length}
+extracted_turn_count: ${extractedCount}
 original_tokens_est: ${metadata.originalTokenEstimate}
 compressed_tokens_est: ${compressedTokens}
 ---`;
 }
 
 function buildGoalSection(turns: Turn[]): string {
-  // Extract goal from the first user turn (most likely to state the problem)
   const firstUserTurn = turns.find((t) => t.role === 'user');
   if (!firstUserTurn) return '[No goal detected — add manually]';
 
@@ -140,18 +165,37 @@ function buildGoalSection(turns: Turn[]): string {
   return sentences.slice(0, 2).join(' ');
 }
 
-function buildKeyDecisions(olderTurns: Turn[]): string {
-  // Heuristic: assistant turns in older conversation often contain decisions/answers
-  const assistantTurns = olderTurns.filter((t) => t.role === 'assistant');
-  if (assistantTurns.length === 0) return '- [No historical decisions captured]';
+/**
+ * Collect all [Attached: ...] placeholders from every turn.
+ * Returns null if no attachments found (section is omitted entirely).
+ */
+function buildAttachmentsSection(turns: Turn[]): string | null {
+  const seen = new Set<string>();
+  const items: string[] = [];
 
-  return assistantTurns
-    .slice(0, 5) // cap at 5 bullets
-    .map((t) => {
-      const firstSentence = t.content.split(/(?<=[.!?])\s+/)[0] ?? t.content;
-      return `- ${firstSentence.trim()}`;
-    })
-    .join('\n');
+  for (const turn of turns) {
+    for (const attachment of turn.attachments) {
+      // Normalize to just the filename portion for the list
+      const display = attachment.replace(/^\[Attached:\s*/, '').replace(/\]$/, '').trim();
+      if (display && !seen.has(display)) {
+        seen.add(display);
+        items.push(`- ${display}`);
+      }
+    }
+  }
+
+  return items.length > 0 ? items.join('\n') : null;
+}
+
+/**
+ * Build key decisions using real pattern-matching, not positional heuristics.
+ * Falls back to a placeholder if no decisions are found.
+ */
+function buildKeyDecisions(turns: Turn[]): string {
+  const decisions = extractDecisions(turns);
+  if (decisions.length === 0) return '- [No explicit decisions detected — review Recent Turns]';
+
+  return decisions.map((d) => `- ${d}`).join('\n');
 }
 
 function buildCurrentState(olderTurns: Turn[]): string {
@@ -163,15 +207,29 @@ function buildCurrentState(olderTurns: Turn[]): string {
     .join('\n\n');
 }
 
+/**
+ * Build problems/solutions section from error-pattern scanning.
+ * Returns null if no problems detected (section is omitted entirely).
+ */
+function buildProblemsAndSolutions(turns: Turn[]): string | null {
+  const pairs = extractProblemSolutions(turns);
+  if (pairs.length === 0) return null;
+
+  return pairs
+    .map((p) => `- **Problem:** ${p.problem} → **Solution:** ${p.solution}`)
+    .join('\n');
+}
+
 function buildCodeArtifacts(turns: Turn[]): string {
-  const verbatimBlocks = turns.flatMap((t) =>
-    t.codeBlocks.filter((b) => b.keepVerbatim || !b.content.startsWith('//'))
+  // Gather all code blocks, deduplicated content already handled by CodeBlockDeduplicator
+  const blocks = turns.flatMap((t) =>
+    t.codeBlocks.filter((b) => b.keepVerbatim || b.content.length > 0)
   );
 
-  if (verbatimBlocks.length === 0) return '';
+  if (blocks.length === 0) return '';
 
-  return verbatimBlocks
-    .slice(0, 5) // cap at 5 code blocks
+  return blocks
+    .slice(0, 5)
     .map((b) => `\`\`\`${b.language}\n${b.content}\n\`\`\``)
     .join('\n\n');
 }
@@ -180,6 +238,12 @@ function buildRecentTurns(recentTurns: Turn[]): string {
   if (recentTurns.length === 0) return '[No recent turns]';
 
   return recentTurns
-    .map((t) => `**${t.role === 'user' ? 'User' : 'Assistant'}:** ${t.content}`)
+    .map((t) => {
+      const roleLabel = t.role === 'user' ? 'User' : 'Assistant';
+      const attachmentNote = t.attachments.length > 0
+        ? `\n${t.attachments.join('\n')}`
+        : '';
+      return `**${roleLabel}:** ${t.content}${attachmentNote}`;
+    })
     .join('\n\n');
 }

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Claude Attachment Fixture</title></head>
+<body>
+<!--
+  Simulates a Claude conversation where the user uploads a PDF file.
+  
+  Key test assertions:
+  - turn.attachments should contain "[Attached: E01-Hadoop Configuration.pdf]"
+  - turn.content should NOT contain "E01-Hadoop Configuration.pdf" as raw text
+  - turn.content should NOT contain "PDF" label text concatenated in
+  
+  Claude renders file attachments as elements with class names containing
+  "attachment" or "file-attachment", with a child element containing the filename.
+  The data-file-name attribute is the most reliable selector.
+-->
+
+<!-- Turn 1: User uploads a PDF attachment -->
+<div data-testid="user-message">
+  <!-- Attachment element — must be detected and stripped from content text -->
+  <div class="file-attachment" data-file-name="E01-Hadoop Configuration.pdf">
+    <span class="attachment-name">E01-Hadoop Configuration.pdf</span>
+    <span class="attachment-type">PDF</span>
+  </div>
+  <!-- Actual message text — this must be the only content captured -->
+  <p>I've uploaded my Hadoop configuration file. Can you review it for common mistakes?</p>
+</div>
+
+<!-- Turn 2: Assistant response — no attachment -->
+<div data-is-streaming="false">
+  <div class="font-claude-response">
+    <p>I can see your hadoop-env.sh configuration. I notice that JAVA_HOME is not explicitly set in this file — it's commented out. This is a common cause of the "JAVA_HOME is not set" error when running start-dfs.sh, because the start scripts source hadoop-env.sh directly rather than inheriting from your shell environment.</p>
+    <p>To fix this, uncomment the JAVA_HOME line and set it to the correct path for your Java installation.</p>
+  </div>
+</div>
+
+<!-- Turn 3: User uploads a second file -->
+<div data-testid="user-message">
+  <div class="file-attachment" data-file-name="E00-Big Data Lab Setup.pdf">
+    <span class="attachment-name">E00-Big Data Lab Setup.pdf</span>
+    <span class="attachment-type">PDF</span>
+  </div>
+  <p>Here's the lab setup document too. Does it have the correct Java version requirements?</p>
+</div>
+
+<!-- Turn 4: Assistant -->
+<div data-is-streaming="false">
+  <div class="font-claude-response">
+    <p>Based on the lab setup document, the course requires Java 8 or Java 11. Both are compatible with Hadoop 3.x. If you have Java 17 or later, you may encounter module access issues with some Hadoop versions — I'd recommend sticking with Java 11 LTS for the best compatibility.</p>
+  </div>
+</div>
+
+</body>
+</html>

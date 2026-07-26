@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Claude Test Fixture</title></head>
+<body>
+<!--
+  Reflects the real Claude.ai DOM structure (July 2026).
+
+  Key points:
+  - User turns: [data-testid="user-message"]
+  - Assistant turns: [data-is-streaming]  (attribute present even when not actively streaming)
+  - Real content body: .font-claude-response
+  - Accessibility duplicate: <h2 data-find-omitted class="sr-only select-none">
+    This element contains "Claude responded: <full text>" and MUST be ignored by the extractor.
+    The extractor must target .font-claude-response explicitly, never node.textContent
+    on the wrapper, to avoid this prefix leaking into captured text.
+-->
+
+<!-- Turn 1: User -->
+<div data-testid="user-message">
+  <p>I am trying to build a sorting algorithm in Python that sorts a list of integers in O(n log n) time. Can you help me implement merge sort?</p>
+</div>
+
+<!-- Turn 2: Assistant -->
+<div data-is-streaming="false">
+  <!-- sr-only accessibility duplicate — extractor must NOT grab this -->
+  <h2 data-find-omitted class="sr-only select-none">Claude responded: Sure! Merge sort is a classic divide-and-conquer algorithm that runs in O(n log n) time.</h2>
+
+  <!-- Real text body — extractor MUST target this -->
+  <div class="font-claude-response">
+    <p>Sure! Merge sort is a classic divide-and-conquer algorithm that runs in O(n log n) time. Here is a clean Python implementation:</p>
+    <pre><code class="language-python">def merge_sort(arr):
+    if len(arr) <= 1:
+        return arr
+    mid = len(arr) // 2
+    left = merge_sort(arr[:mid])
+    right = merge_sort(arr[mid:])
+    return merge(left, right)
+
+def merge(left, right):
+    result = []
+    i = j = 0
+    while i < len(left) and j < len(right):
+        if left[i] <= right[j]:
+            result.append(left[i])
+            i += 1
+        else:
+            result.append(right[j])
+            j += 1
+    result.extend(left[i:])
+    result.extend(right[j:])
+    return result</code></pre>
+    <p>The time complexity is O(n log n) in all cases, and the space complexity is O(n) because we create new arrays during merging.</p>
+  </div>
+</div>
+
+<!-- Turn 3: User -->
+<div data-testid="user-message">
+  <p>Great! Can you also add a test for this function?</p>
+</div>
+
+<!-- Turn 4: Assistant -->
+<div data-is-streaming="false">
+  <h2 data-find-omitted class="sr-only select-none">Claude responded: Of course! Here are some tests using Python's unittest module:</h2>
+  <div class="font-claude-response">
+    <p>Of course! Here are some tests using Python's unittest module:</p>
+    <pre><code class="language-python">import unittest
+
+class TestMergeSort(unittest.TestCase):
+    def test_empty(self):
+        self.assertEqual(merge_sort([]), [])
+    def test_single(self):
+        self.assertEqual(merge_sort([1]), [1])
+    def test_sorted(self):
+        self.assertEqual(merge_sort([1, 2, 3]), [1, 2, 3])
+    def test_reverse(self):
+        self.assertEqual(merge_sort([3, 2, 1]), [1, 2, 3])</code></pre>
+  </div>
+</div>
+
+</body>
+</html>

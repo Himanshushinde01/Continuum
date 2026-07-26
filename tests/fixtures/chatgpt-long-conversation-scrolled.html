@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>ChatGPT Long Conversation Fixture</title></head>
+<body>
+<!--
+  Simulates a long ChatGPT conversation (12 turns) for the completeness check test.
+  All turns use [data-message-author-role] as the primary selector.
+-->
+<main>
+  <div data-message-author-role="user" data-message-id="msg-001">
+    <p>How do I implement JWT authentication in a Node.js Express API?</p>
+  </div>
+  <div data-message-author-role="assistant" data-message-id="msg-002" data-message-model-slug="gpt-4o">
+    <div class="markdown prose">
+      <p>JWT authentication in Express requires the jsonwebtoken library. Install it with npm install jsonwebtoken. Then create a middleware that verifies the token from the Authorization header.</p>
+    </div>
+  </div>
+
+  <div data-message-author-role="user" data-message-id="msg-003">
+    <p>I'm getting "JsonWebTokenError: invalid signature" when verifying tokens.</p>
+  </div>
+  <div data-message-author-role="assistant" data-message-id="msg-004" data-message-model-slug="gpt-4o">
+    <div class="markdown prose">
+      <p>This error means the token was signed with a different secret than the one you're using to verify it. Check that your JWT_SECRET environment variable is the same in both the signing and verification code. A common mistake is using process.env.JWT_SECRET in one place and a hardcoded string in the other.</p>
+    </div>
+  </div>
+
+  <div data-message-author-role="user" data-message-id="msg-005">
+    <p>Found it — I had a typo in my .env file. Now verification works but I need to handle token expiry. Getting "TokenExpiredError: jwt expired"</p>
+  </div>
+  <div data-message-author-role="assistant" data-message-id="msg-006" data-message-model-slug="gpt-4o">
+    <div class="markdown prose">
+      <p>TokenExpiredError is expected when a token's exp claim is in the past. You should catch this specifically in your middleware and return a 401 with a message indicating the session expired, prompting the client to refresh. Use a refresh token pattern: issue a short-lived access token (15 min) and a longer-lived refresh token (7 days).</p>
+    </div>
+  </div>
+
+  <div data-message-author-role="user" data-message-id="msg-007">
+    <p>How should I store the refresh token securely?</p>
+  </div>
+  <div data-message-author-role="assistant" data-message-id="msg-008" data-message-model-slug="gpt-4o">
+    <div class="markdown prose">
+      <p>Store refresh tokens in an httpOnly, Secure cookie — never in localStorage, which is accessible to JavaScript and vulnerable to XSS. The httpOnly flag prevents JS access entirely. For additional security, store a hash of the refresh token in your database and invalidate it on logout.</p>
+    </div>
+  </div>
+
+  <div data-message-author-role="user" data-message-id="msg-009">
+    <p>My refresh endpoint returns 403 even with a valid refresh token. Error: "Cannot read properties of undefined (reading 'userId')"</p>
+  </div>
+  <div data-message-author-role="assistant" data-message-id="msg-010" data-message-model-slug="gpt-4o">
+    <div class="markdown prose">
+      <p>This error means jwt.verify() returned undefined or the decoded payload doesn't have a userId field. The fix is to check that you're accessing the payload correctly after verification: const decoded = jwt.verify(token, secret); if (!decoded || typeof decoded === 'string') throw new Error('Invalid token'). The payload structure depends on what you included when signing.</p>
+    </div>
+  </div>
+
+  <div data-message-author-role="user" data-message-id="msg-011">
+    <p>That fixed it. The token refresh is working now. How do I add role-based access control on top of this?</p>
+  </div>
+  <div data-message-author-role="assistant" data-message-id="msg-012" data-message-model-slug="gpt-4o">
+    <div class="markdown prose">
+      <p>Include the user's role in the JWT payload when signing: jwt.sign({ userId, role: user.role }, secret, { expiresIn: '15m' }). Then create a requireRole middleware that checks req.user.role against the allowed roles. Apply it after your verifyToken middleware: router.get('/admin', verifyToken, requireRole('admin'), handler).</p>
+    </div>
+  </div>
+</main>
+</body>
+</html>

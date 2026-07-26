@@ -7,16 +7,16 @@ import { BaseExtractor } from './base-extractor';
  * Gemini DOM extractor (updated July 2026).
  *
  * Confirmed selectors (live console inspection):
- *   user-query           — custom element wrapping each user turn
- *   user-query-content   — nested element holding the actual user text
- *   model-response       — custom element wrapping each assistant turn
- *   message-content      — nested element holding the actual assistant text
- *                          (do NOT use response-container's textContent — it includes
- *                          surrounding action chrome / regenerate buttons)
+ *   user-query           — custom element for user turn
+ *   user-query-content   — nested element with user text
+ *   model-response       — custom element for assistant turn
+ *   message-content      — nested element with real text
+ *                          (NOT response-container — that includes action chrome)
  *
- * DOM order preservation: querySelectorAll('user-query, model-response') returns
- * all nodes in document order, so user/assistant turns come out correctly
- * interleaved without any manual sorting.
+ * Attachment detection:
+ *   Gemini renders image/file uploads inside user-query as custom elements or
+ *   div containers with class names containing "image-upload" or "file-chip".
+ *   We extract these as [Attached: name] and strip before text extraction.
  */
 
 const SELECTORS = {
@@ -24,6 +24,10 @@ const SELECTORS = {
   assistantTurn: 'model-response',
   userBody: 'user-query-content',
   assistantBody: 'message-content',
+  // Gemini attachment elements
+  attachmentContainer: '[class*="image-upload"], [class*="file-chip"], [class*="uploaded-file"]',
+  attachmentName: '[class*="file-name"], [alt], [aria-label]',
+  scrollContainer: 'infinite-scroller, chat-history, .conversation-container, main',
 } as const;
 
 const MODULE = 'gemini-extractor';
@@ -31,8 +35,11 @@ const MODULE = 'gemini-extractor';
 export class GeminiExtractor extends BaseExtractor {
   readonly platform = 'gemini' as const;
 
+  protected override scrollContainerSelector(): string {
+    return SELECTORS.scrollContainer;
+  }
+
   protected findTurnElements(): Element[] {
-    // Combined selector — querySelectorAll preserves DOM order across both custom elements.
     const nodes = document.querySelectorAll(
       `${SELECTORS.userTurn}, ${SELECTORS.assistantTurn}`
     );
@@ -58,24 +65,21 @@ export class GeminiExtractor extends BaseExtractor {
 
     // User turn
     if (tag === SELECTORS.userTurn) {
-      // Prefer the dedicated content element; fall back to the wrapper itself.
-      // user-query-content is typically a plain text container with no hidden chrome.
+      const attachments = this.extractGeminiAttachments(el);
       const bodyEl = el.querySelector(SELECTORS.userBody) ?? el;
-      const content = this.extractTextContent(bodyEl);
-      if (!content) return null;
+      const content = this.extractTextContent(bodyEl, true);
+      if (!content && attachments.length === 0) return null;
 
       return {
         role: 'user',
-        content,
+        content: content ?? '',
         codeBlocks: this.extractCodeBlocks(bodyEl),
+        attachments,
       };
     }
 
-    // Assistant turn
+    // Assistant turn — target message-content, NOT response-container
     if (tag === SELECTORS.assistantTurn) {
-      // MUST target message-content specifically.
-      // response-container includes the full component chrome (action buttons, etc.)
-      // and must not be used as the text source.
       const bodyEl = el.querySelector(SELECTORS.assistantBody);
       if (!bodyEl) {
         logger.warn(MODULE, 'parseTurn',
@@ -85,26 +89,64 @@ export class GeminiExtractor extends BaseExtractor {
         return null;
       }
 
-      const content = this.extractTextContent(bodyEl);
+      const content = this.extractTextContent(bodyEl, false);
       if (!content) return null;
 
       return {
         role: 'assistant',
         content,
         codeBlocks: this.extractCodeBlocks(bodyEl),
+        attachments: [],
       };
     }
 
-    // Should not happen given the combined selector, but guard anyway
     return null;
   }
 
   /**
-   * Strips <pre> blocks (captured separately as codeBlocks) and returns clean prose text.
+   * Gemini-specific attachment extraction.
+   * Looks for image uploads and file chips inside user-query elements.
    */
-  private extractTextContent(el: Element): string {
+  private extractGeminiAttachments(el: Element): string[] {
+    const attachments: string[] = [];
+
+    el.querySelectorAll('[data-file-name]').forEach((node) => {
+      const name = node.getAttribute('data-file-name')?.trim();
+      if (name) attachments.push(`[Attached: ${name}]`);
+    });
+
+    el.querySelectorAll(SELECTORS.attachmentContainer).forEach((container) => {
+      // img alt text (for image uploads)
+      const img = container.querySelector('img[alt]');
+      if (img) {
+        const alt = img.getAttribute('alt')?.trim();
+        if (alt && !attachments.includes(`[Attached: ${alt}]`)) {
+          attachments.push(`[Attached: ${alt}]`);
+          return;
+        }
+      }
+
+      // Named file chip text
+      const nameEl = container.querySelector(SELECTORS.attachmentName);
+      const name = nameEl?.textContent?.trim() ?? container.getAttribute('aria-label')?.trim();
+      if (name && !attachments.includes(`[Attached: ${name}]`)) {
+        attachments.push(`[Attached: ${name}]`);
+      }
+    });
+
+    return [...new Set(attachments)];
+  }
+
+  private extractTextContent(el: Element, stripAttachments: boolean): string {
     const clone = el.cloneNode(true) as Element;
     clone.querySelectorAll('pre').forEach((pre) => pre.remove());
+    clone.querySelectorAll('[aria-hidden="true"]').forEach((n) => n.remove());
+
+    if (stripAttachments) {
+      this.stripAttachmentElements(clone);
+      // Also strip Gemini-specific attachment containers
+      clone.querySelectorAll(SELECTORS.attachmentContainer).forEach((n) => n.remove());
+    }
 
     const paragraphs = clone.querySelectorAll('p');
     if (paragraphs.length > 0) {

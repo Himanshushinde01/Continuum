@@ -31,6 +31,10 @@ export interface CaptureAckMessage {
   type: 'CAPTURE_ACK';
   success: boolean;
   error?: string;
+  /** True when DOM element count > parsed turn count — some turns may have been dropped. */
+  partialCapture?: boolean;
+  /** Human-readable explanation of the partial capture, e.g. "captured 7 of 20+ turns". */
+  partialCaptureMessage?: string;
 }
 
 // ── Background → Content Script ───────────────────────────────────────────────

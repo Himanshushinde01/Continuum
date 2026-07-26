@@ -6,22 +6,30 @@ import { BaseExtractor } from './base-extractor';
 /**
  * Claude.ai DOM extractor (updated July 2026).
  *
- * Key selectors:
+ * Confirmed selectors (live console inspection):
  *   [data-testid="user-message"]  — user turn wrapper
- *   [data-is-streaming]           — assistant turn wrapper (present regardless of streaming state)
- *   .font-claude-response         — the real assistant text body
+ *   [data-is-streaming]           — assistant turn wrapper
+ *   .font-claude-response         — real assistant text body
  *
- * ⚠ DO NOT use node.textContent on the assistant wrapper directly, or
- *   node.querySelector('h2'). Claude injects an sr-only accessibility element:
+ * ⚠ DO NOT use node.textContent on the assistant wrapper — Claude injects:
  *     <h2 data-find-omitted class="sr-only select-none">Claude responded: …</h2>
  *   which duplicates the full text prefixed with "Claude responded: ".
- *   We must query .font-claude-response explicitly to skip it.
+ *   Target .font-claude-response explicitly.
+ *
+ * Attachment detection:
+ *   Claude renders file attachments as elements with data-testid containing "attachment"
+ *   or class names containing "attachment"/"file". We extract these as [Attached: name]
+ *   placeholders and strip them before text extraction.
  */
 
 const SELECTORS = {
   userTurn: '[data-testid="user-message"]',
   assistantTurn: '[data-is-streaming]',
   assistantTextBody: '.font-claude-response',
+  // Claude attachment elements — confirmed from live DOM inspection
+  attachmentContainer: '[data-testid*="attachment"], [class*="file-attachment"], [class*="attachment-pill"]',
+  attachmentName: '[class*="attachment-name"], [class*="file-name"], [data-file-name]',
+  scrollContainer: '[data-testid="conversation-scroll-container"], .overflow-y-scroll, main',
 } as const;
 
 const MODULE = 'claude-extractor';
@@ -29,13 +37,11 @@ const MODULE = 'claude-extractor';
 export class ClaudeExtractor extends BaseExtractor {
   readonly platform = 'claude' as const;
 
-  /**
-   * Returns all turn elements in document order, each tagged with role and
-   * the correct text-bearing element (never the sr-only duplicate).
-   */
+  protected override scrollContainerSelector(): string {
+    return SELECTORS.scrollContainer;
+  }
+
   protected findTurnElements(): Element[] {
-    // Combined selector — querySelectorAll returns nodes in document order,
-    // so user and assistant turns come out correctly interleaved automatically.
     const nodes = document.querySelectorAll(
       `${SELECTORS.userTurn}, ${SELECTORS.assistantTurn}`
     );
@@ -53,27 +59,25 @@ export class ClaudeExtractor extends BaseExtractor {
       });
     }
 
-    // Return the wrappers; parseTurn handles the per-role extraction logic.
     return Array.from(nodes);
   }
 
   protected parseTurn(el: Element): Turn | null {
     // User turn
     if (el.matches(SELECTORS.userTurn)) {
-      const content = this.extractTextContent(el);
-      if (!content) return null;
+      const attachments = this.extractAttachmentsFromClaudeTurn(el);
+      const content = this.extractTextContent(el, true);
+      if (!content && attachments.length === 0) return null;
 
       return {
         role: 'user',
-        content,
+        content: content ?? '',
         codeBlocks: this.extractCodeBlocks(el),
+        attachments,
       };
     }
 
-    // Assistant turn wrapper ([data-is-streaming])
-    // The real text lives in .font-claude-response.
-    // DO NOT use el.textContent — it includes the sr-only <h2> with
-    // "Claude responded: …" prefix that would corrupt the captured text.
+    // Assistant turn — MUST target .font-claude-response, not wrapper textContent
     const textEl = el.querySelector(SELECTORS.assistantTextBody);
     if (!textEl) {
       logger.warn(MODULE, 'parseTurn',
@@ -83,30 +87,64 @@ export class ClaudeExtractor extends BaseExtractor {
       return null;
     }
 
-    const content = this.extractTextContent(textEl);
+    const content = this.extractTextContent(textEl, false);
     if (!content) return null;
 
     return {
       role: 'assistant',
       content,
       codeBlocks: this.extractCodeBlocks(textEl),
+      attachments: [], // Claude assistant turns don't have attachments
     };
   }
 
   /**
-   * Extracts prose text from an element, stripping <pre> blocks first
-   * (those are captured separately as codeBlocks by the base class).
+   * Claude-specific attachment extraction.
+   * Claude renders attachments inside the user message wrapper.
    */
-  private extractTextContent(el: Element): string {
+  private extractAttachmentsFromClaudeTurn(el: Element): string[] {
+    const attachments: string[] = [];
+
+    // Primary: data-file-name attribute on attachment elements
+    el.querySelectorAll('[data-file-name]').forEach((node) => {
+      const name = node.getAttribute('data-file-name')?.trim();
+      if (name) attachments.push(`[Attached: ${name}]`);
+    });
+
+    // Secondary: named children within recognized attachment containers
+    el.querySelectorAll(SELECTORS.attachmentContainer).forEach((container) => {
+      const nameEl = container.querySelector(SELECTORS.attachmentName);
+      if (nameEl) {
+        const name = nameEl.textContent?.trim();
+        if (name && !attachments.includes(`[Attached: ${name}]`)) {
+          attachments.push(`[Attached: ${name}]`);
+        }
+      } else {
+        // Fallback: use aria-label on the container itself
+        const label = container.getAttribute('aria-label')?.trim();
+        if (label && !attachments.includes(`[Attached: ${label}]`)) {
+          attachments.push(`[Attached: ${label}]`);
+        }
+      }
+    });
+
+    return [...new Set(attachments)];
+  }
+
+  private extractTextContent(el: Element, stripAttachments: boolean): string {
     const clone = el.cloneNode(true) as Element;
 
-    // Remove code blocks — captured separately via extractCodeBlocks()
+    // Remove code blocks (captured separately as codeBlocks)
     clone.querySelectorAll('pre').forEach((pre) => pre.remove());
 
-    // Also strip the sr-only accessibility heading if it leaked into the clone
-    clone.querySelectorAll('[class*="sr-only"]').forEach((srEl) => srEl.remove());
+    // Remove sr-only accessibility elements (e.g. "Claude responded: …" prefix)
+    clone.querySelectorAll('[class*="sr-only"], [aria-hidden="true"]').forEach((srEl) => srEl.remove());
 
-    // Prefer paragraph elements for clean prose extraction
+    // Remove attachment DOM elements so filenames never bleed into content
+    if (stripAttachments) {
+      this.stripAttachmentElements(clone);
+    }
+
     const paragraphs = clone.querySelectorAll('p, .prose p, [class*="prose"] p');
     if (paragraphs.length > 0) {
       return Array.from(paragraphs)

@@ -83,8 +83,14 @@ if (platform === 'unknown') {
             return;
           }
 
-          // The background returns an AckResponse
-          const bgAck = saveResult.value;
+          // The background returns an AckResponse (possibly with partialCapture fields)
+          const bgAck = saveResult.value as {
+            type: string;
+            success: boolean;
+            error?: string;
+            partialCapture?: boolean;
+            partialCaptureMessage?: string;
+          };
           if (bgAck.type === 'ACK' && !bgAck.success) {
             sendResponse({
               type: 'CAPTURE_ACK',
@@ -95,7 +101,12 @@ if (platform === 'unknown') {
           }
 
           logger.info(MODULE, 'onMessage', 'Capture complete — sent ACK to popup');
-          sendResponse({ type: 'CAPTURE_ACK', success: true });
+          sendResponse({
+            type: 'CAPTURE_ACK',
+            success: true,
+            partialCapture: bgAck.partialCapture,
+            partialCaptureMessage: bgAck.partialCaptureMessage,
+          });
         })();
 
         return true; // keep message channel open for async response

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Claude Long Conversation Fixture</title></head>
+<body>
+<!--
+  Simulates a long Claude conversation that would normally require scrolling.
+  Contains 12 turns (6 user + 6 assistant) to test the completeness check.
+  In the test, extractedTurnCount should equal the DOM element count (12).
+  
+  Real Claude DOM: [data-testid="user-message"], [data-is-streaming]
+-->
+
+<div data-testid="user-message"><p>I want to build a Hadoop cluster on my local machine. Where do I start?</p></div>
+<div data-is-streaming="false"><div class="font-claude-response"><p>Start by installing Java (JDK 8 or 11), then download Hadoop from the Apache website. Set JAVA_HOME and HADOOP_HOME environment variables, then configure the core-site.xml, hdfs-site.xml, and mapred-site.xml files.</p></div></div>
+
+<div data-testid="user-message"><p>I set JAVA_HOME but I keep getting "JAVA_HOME is not set" error when running start-dfs.sh.</p></div>
+<div data-is-streaming="false"><div class="font-claude-response"><p>The issue is that JAVA_HOME needs to be set in hadoop-env.sh specifically, not just in your shell profile. Open $HADOOP_HOME/etc/hadoop/hadoop-env.sh and add: export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64. The start scripts source this file directly, not your .bashrc.</p></div></div>
+
+<div data-testid="user-message"><p>Now I'm getting a different error: "Error: JAVA_HOME is not set and could not be found." The hadoop-env.sh shows the correct path.</p></div>
+<div data-is-streaming="false"><div class="font-claude-response"><p>Check if the path actually exists: run "ls /usr/lib/jvm/java-11-openjdk-amd64". If the directory doesn't exist, find the correct path with "update-java-alternatives -l" or "readlink -f $(which java)". Use the exact path shown there. The error means the directory the variable points to doesn't exist at runtime.</p></div></div>
+
+<div data-testid="user-message"><p>The path was wrong. Fixed it. Now start-dfs.sh runs but namenode won't start. Logs show: "java.io.IOException: Cannot create directory /tmp/hadoop-hdfs/dfs/name"</p></div>
+<div data-is-streaming="false"><div class="font-claude-response"><p>This is a permissions issue on the namenode data directory. Run: sudo mkdir -p /tmp/hadoop-hdfs/dfs/name && sudo chown -R $USER:$USER /tmp/hadoop-hdfs. Then format the namenode fresh: hdfs namenode -format. After formatting, try start-dfs.sh again.</p></div></div>
+
+<div data-testid="user-message"><p>Namenode is up now. But when I run "hdfs dfs -ls /", I get: "ls: Call From myhost to localhost:9000 failed on connection exception"</p></div>
+<div data-is-streaming="false"><div class="font-claude-response"><p>The namenode is starting but not listening on the expected port. Check core-site.xml — it should have: &lt;property&gt;&lt;name&gt;fs.defaultFS&lt;/name&gt;&lt;value&gt;hdfs://localhost:9000&lt;/value&gt;&lt;/property&gt;. Also verify the namenode is actually running: jps should show "NameNode" in the output. If not, check the namenode log in $HADOOP_HOME/logs/ for the actual startup error.</p></div></div>
+
+<div data-testid="user-message"><p>jps shows NameNode. core-site.xml looks correct. But now I'm seeing it works! hdfs dfs -ls / shows the directory listing. Thank you!</p></div>
+<div data-is-streaming="false"><div class="font-claude-response"><p>Great, the cluster is working now. The connection issue was likely a transient one that resolved after the namenode fully initialized. Next steps: start the ResourceManager with start-yarn.sh, then try running a test MapReduce job with the built-in example: hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar wordcount /input /output.</p></div></div>
+
+</body>
+</html>

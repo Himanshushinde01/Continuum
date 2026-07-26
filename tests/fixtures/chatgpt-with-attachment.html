@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>ChatGPT Attachment Fixture</title></head>
+<body>
+<!--
+  Simulates a ChatGPT conversation where the user uploads a file.
+  ChatGPT renders file uploads as "file pill" elements with data-filetype attribute.
+  
+  Key test assertions:
+  - turn.attachments should contain "[Attached: requirements.txt]"
+  - turn.content must NOT contain "requirements.txt" or "TXT" label text
+  - UI chrome (Copy button) must not appear in any assistant turn's content
+-->
+<main>
+  <!-- Turn 1: User message with file attachment -->
+  <div data-message-author-role="user" data-message-id="msg-001">
+    <!-- File pill — must be detected and stripped -->
+    <div data-filetype="text" data-file-name="requirements.txt">
+      <div class="file-name">requirements.txt</div>
+      <span class="file-type-badge">TXT</span>
+    </div>
+    <!-- Real message content -->
+    <p>Here are my project dependencies. Can you check if any of these packages have known security vulnerabilities?</p>
+  </div>
+
+  <!-- Turn 2: Assistant response -->
+  <div data-message-author-role="assistant" data-message-id="msg-002" data-message-model-slug="gpt-4o">
+    <button style="display:none" aria-label="Copy message">Copy</button>
+    <div class="markdown prose">
+      <p>Looking at your requirements.txt, I can see a few packages that have known security advisories. The most critical is requests==2.25.0, which has a vulnerability in SSRF protection that was fixed in 2.26.0. You should upgrade to at least 2.28.0.</p>
+      <p>Also, Pillow==8.2.0 has several image processing vulnerabilities fixed in 8.3.2. Run pip install --upgrade requests pillow to get the patched versions.</p>
+    </div>
+  </div>
+
+  <!-- Turn 3: Follow-up -->
+  <div data-message-author-role="user" data-message-id="msg-003">
+    <p>Thanks, I'll update those. Are there any other issues?</p>
+  </div>
+
+  <!-- Turn 4: Assistant -->
+  <div data-message-author-role="assistant" data-message-id="msg-004" data-message-model-slug="gpt-4o">
+    <button style="display:none" aria-label="Copy message">Copy</button>
+    <div class="markdown prose">
+      <p>The rest of your dependencies look current. One suggestion: pin your dependencies to exact versions using == rather than >= to avoid unexpected upgrades in production. Also consider running pip audit regularly to catch new advisories as they're published.</p>
+    </div>
+  </div>
+</main>
+</body>
+</html>
